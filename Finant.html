@@ -453,16 +453,48 @@ function getAmt(e) {
   return e.amount;
 }
 
-function isPaid(id) { return !!(S.payments[pkey(id)]?.paid); }
-function paidAmt(id) { return S.payments[pkey(id)]?.amount||0; }
+function debtPkey(debtId) { return `debt_${debtId}-${cy}-${cm}`; }
+function isDebtPaid(debtId) { return !!(S.payments[debtPkey(debtId)]?.paid); }
+function debtPaidAmtM(debtId) { return S.payments[debtPkey(debtId)]?.amount||0; }
+
+function isPaid(id) {
+  if(typeof id === 'string' && id.startsWith('debt_')) {
+    const dId = parseInt(id.replace('debt_',''));
+    return isDebtPaid(dId);
+  }
+  return !!(S.payments[pkey(id)]?.paid);
+}
+function paidAmt(id) {
+  if(typeof id === 'string' && id.startsWith('debt_')) {
+    const dId = parseInt(id.replace('debt_',''));
+    return debtPaidAmtM(dId);
+  }
+  return S.payments[pkey(id)]?.amount||0;
+}
+
+function debtVirtualEntries(day) {
+  // Active debts with a day become virtual entries in the plan
+  return S.debts
+    .filter(d => d.day == day && d.monthly > 0 && debtRemaining(d) > 0)
+    .map(d => ({
+      id: 'debt_' + d.id,  // prefixed so payments key is unique
+      name: d.name + (d.kind==='parcelada' ? ' (parcela)' : ''),
+      type: 'debt',
+      day: d.day,
+      rec: 'monthly',
+      amount: d.monthly,
+      _debtId: d.id
+    }));
+}
 
 function periodEntries(day) {
-  return S.entries.filter(e=>{
+  const regular = S.entries.filter(e=>{
     if(e.day!=day)return false;
     if(e.rec==='monthly'||e.type==='variable_fixed')return true;
     if(e.rec==='once')return e.month===cm&&e.year===cy;
     return false;
   });
+  return [...regular, ...debtVirtualEntries(day)];
 }
 
 function sumT(arr, types) {
@@ -527,7 +559,7 @@ function renderPlano() {
   const vars    = ents.filter(e=>e.type==='variable');
 
   const totalIn  = sumT(ents,['income']);
-  const totalOut = sumT(ents,['fixed','variable','variable_fixed']);
+  const totalOut = sumT(ents,['fixed','variable','variable_fixed','debt']);
 
   const transf = getTransf() ?? 0; // quanto guardaram do dia 05 pro dia 20
 
@@ -537,8 +569,8 @@ function renderPlano() {
   const bal20real = (totalIn + (day===20 ? transf : 0)) - totalOut;
   const bal = day===5 ? bal05real : bal20real;
 
-  const remaining = ents.filter(e=>e.type!=='income'&&!isPaid(e.id)).reduce((s,e)=>s+(getAmt(e)||0),0);
-  const countPend = ents.filter(e=>e.type!=='income'&&!isPaid(e.id)).length;
+  const remaining = ents.filter(e=>e.type!=='income'&&e.type!=='saving'&&!isPaid(e.id)).reduce((s,e)=>s+(getAmt(e)||0),0);
+  const countPend = ents.filter(e=>e.type!=='income'&&e.type!=='saving'&&!isPaid(e.id)).length;
 
   const alertHTML = bal<0
     ? `<div class="alert-bar red">⚠️ Período no vermelho em ${fmt(Math.abs(bal))}</div>`
@@ -657,10 +689,10 @@ function clearTransf() {
 }
 
 function itemH(e) {
-  const icons={income:'💰',fixed:'🔒',variable:'📌',variable_fixed:'⚡',saving:'🎯'};
-  const icls={income:'ii',fixed:'fi',variable:'vi',variable_fixed:'vfi',saving:'si'};
-  const tcls={income:'ti',fixed:'tf',variable:'tv',variable_fixed:'tvf',saving:'ts'};
-  const ttxt={income:'ENTRADA',fixed:'FIXA',variable:'PONTUAL',variable_fixed:'VAR',saving:'RESERVA'};
+  const icons={income:'💰',fixed:'🔒',variable:'📌',variable_fixed:'⚡',saving:'🎯',debt:'💳'};
+  const icls={income:'ii',fixed:'fi',variable:'vi',variable_fixed:'vfi',saving:'si',debt:'vfi'};
+  const tcls={income:'ti',fixed:'tf',variable:'tv',variable_fixed:'tvf',saving:'ts',debt:'tvf'};
+  const ttxt={income:'ENTRADA',fixed:'FIXA',variable:'PONTUAL',variable_fixed:'VAR',saving:'RESERVA',debt:'DÍVIDA'};
   const isInc=e.type==='income';
   const paid=isPaid(e.id);
   const planned=getAmt(e);
@@ -678,7 +710,8 @@ function itemH(e) {
   }
 
   const penBtn=e.type==='variable_fixed'?`<button class="btn-pen" onclick="openVAmt(${e.id},'${e.name}')">✎</button>`:'';
-  const payBtn=(e.type!=='saving'&&e.type!=='income')?`<button class="btn-pay ${paid?'done':''}" onclick="openPay(${e.id},'${e.name}',${planned||0})">${paid?'✓':''}</button>`:'';
+  const isDebt = e.type==='debt';
+  const payBtn=(e.type!=='saving'&&e.type!=='income')?`<button class="btn-pay ${paid?'done':''}" onclick="openPay('${e.id}','${e.name}',${planned||0})">${paid?'✓':''}</button>`:'';
 
   return `
   <div class="itm ${paid?'paid':''}">
@@ -687,6 +720,7 @@ function itemH(e) {
       <div class="iname">${e.name}</div>
       <div class="itag">
         <span class="tag ${tcls[e.type]}">${ttxt[e.type]}</span>
+        ${isDebt&&e._debtId?(()=>{const _d=S.debts.find(d=>d.id===e._debtId);return _d?`<span style="color:var(--muted);font-size:9px;margin-left:3px">${fmt(debtRemaining(_d))} restante</span>`:''})():''}
         ${e.rec==='monthly'||e.type==='variable_fixed'?'<span style="color:var(--muted);font-size:8px">↻</span>':''}
         ${paid&&paidAmt(e.id)!==(planned||0)?`<span style="color:var(--d5);font-size:8px">planejado ${fmt(planned||0)}</span>`:''}
       </div>
@@ -695,7 +729,7 @@ function itemH(e) {
       ${amtH}
       ${penBtn}
       ${payBtn}
-      <button class="btn-del" onclick="delEntry(${e.id})">✕</button>
+      ${!isDebt?`<button class="btn-del" onclick="delEntry(${e.id})">✕</button>`:''}
     </div>
   </div>`;
 }
@@ -916,15 +950,15 @@ function renderDash() {
   const e5  = periodEntries(5);
   const e20 = periodEntries(20);
 
-  const in5   = sumT(e5,['income']),  out5  = sumT(e5,['fixed','variable','variable_fixed']);
-  const in20  = sumT(e20,['income']), out20 = sumT(e20,['fixed','variable','variable_fixed']);
+  const in5   = sumT(e5,['income']),  out5  = sumT(e5,['fixed','variable','variable_fixed','debt']);
+  const in20  = sumT(e20,['income']), out20 = sumT(e20,['fixed','variable','variable_fixed','debt']);
   const transf = getTransf() ?? 0;
   const bal5  = in5 - out5 - transf;   // dia 05 desconta a transferência
   const bal20 = (in20 + transf) - out20; // dia 20 recebe a transferência
   const balTotal = bal20; // saldo real do mês
 
-  const paid5out  = sumPaid(e5,['fixed','variable','variable_fixed']);
-  const paid20out = sumPaid(e20,['fixed','variable','variable_fixed']);
+  const paid5out  = sumPaid(e5,['fixed','variable','variable_fixed','debt']);
+  const paid20out = sumPaid(e20,['fixed','variable','variable_fixed','debt']);
   const totalPlanned = out5+out20;
   const totalPaid = paid5out+paid20out;
   const paidPct = totalPlanned>0?Math.min(100,Math.round(totalPaid/totalPlanned*100)):0;
@@ -1135,12 +1169,29 @@ function openPay(id, name, planned) {
 function confirmPay() {
   const v=parseFloat(document.getElementById('pAmt').value);
   if(isNaN(v)||v<0)return;
-  S.payments[pkey(payingId)]={paid:true,amount:v};
+  
+  if(typeof payingId==='string'&&payingId.startsWith('debt_')) {
+    const dId = parseInt(payingId.replace('debt_',''));
+    // Mark as paid for this month AND register debt payment
+    S.payments[debtPkey(dId)]={paid:true,amount:v};
+    // Add to debtPays history
+    S.debtPays.push({id:S.nextDPId++,dId,amt:v,note:'Auto via Plano',date:new Date().toISOString(),month:cm,year:cy});
+  } else {
+    S.payments[pkey(payingId)]={paid:true,amount:v};
+  }
   persist(); closeM('mPay'); render();
 }
 
 function unpay() {
-  delete S.payments[pkey(payingId)];
+  if(typeof payingId==='string'&&payingId.startsWith('debt_')) {
+    const dId = parseInt(payingId.replace('debt_',''));
+    delete S.payments[debtPkey(dId)];
+    // Remove last debtPay for this month
+    let idx=-1; S.debtPays.forEach((p,i)=>{if(p.dId===dId&&p.month===cm&&p.year===cy&&p.note==='Auto via Plano')idx=i;});
+    if(idx>=0) S.debtPays.splice(idx,1);
+  } else {
+    delete S.payments[pkey(payingId)];
+  }
   persist(); closeM('mPay'); render();
 }
 
@@ -1461,4 +1512,3 @@ setPage('plano');
 </script>
 </body>
 </html>
-

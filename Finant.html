@@ -65,7 +65,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--fm);min-height:100
 /* ITEMS */
 .ilist{display:flex;flex-direction:column;gap:7px}
 .itm{background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:12px 13px;display:flex;align-items:center;gap:10px;transition:all .25s}
-.itm.paid{opacity:.55;border-style:dashed}
+.itm.paid{opacity:.6;border-style:dashed;border-left:3px solid var(--success)}
 .itm.paid .iname{text-decoration:line-through}
 .iico{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
 .iico.ii{background:rgba(107,255,184,.1)}.iico.fi{background:rgba(79,209,197,.1)}.iico.vi{background:rgba(247,201,72,.1)}.iico.si{background:rgba(192,132,252,.12)}.iico.vfi{background:rgba(255,107,107,.08)}.iico.gi{background:rgba(255,170,100,.1)}
@@ -77,7 +77,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--fm);min-height:100
 .iamt.pos{color:var(--success)}.iamt.neg{color:var(--danger)}.iamt.sv{color:var(--sav)}.iamt.pend{color:var(--muted);font-size:11px;font-style:italic}
 .iamt.paid-real{color:var(--success);font-size:11px}
 
-.btn-pay{width:26px;height:26px;border-radius:50%;border:2px solid var(--border);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s;font-size:12px;color:transparent}
+.btn-pay{width:32px;height:32px;border-radius:50%;border:2px solid var(--border);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s;font-size:13px;color:transparent}
 .btn-pay:hover{border-color:var(--success);color:var(--success)}
 .btn-pay.done{border-color:var(--success);background:rgba(107,255,184,.15);color:var(--success)}
 .btn-pen{width:24px;height:24px;border-radius:7px;border:none;background:rgba(79,209,197,.1);color:var(--d20);font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:.7;transition:all .15s}
@@ -215,7 +215,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--fm);min-height:100
   <button onclick="openSettings()" style="background:transparent;border:1px solid var(--border);border-radius:8px;padding:5px 10px;color:var(--muted);cursor:pointer;font-size:14px" title="Configurações">⚙️</button>
   <div class="month-nav">
     <button class="btn-mn" onclick="chM(-1)">◀</button>
-    <div class="month-lbl" id="mlbl">—</div>
+    <div class="month-lbl" id="mlbl" style="cursor:pointer" onclick="goToToday()" title="Ir para hoje">—</div>
     <button class="btn-mn" onclick="chM(1)">▶</button>
   </div>
 </div>
@@ -281,10 +281,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--fm);min-height:100
   <div class="mtitle" id="mPayTitle">Marcar como Pago</div>
   <div class="ibox" id="mPayInfo"></div>
   <div class="field"><label>Valor pago (R$)</label><input type="number" id="pAmt" step="0.01" min="0"></div>
-  <div class="btn-row">
-    <button class="btn-sv" onclick="confirmPay()">✓ Confirmar</button>
-    <button class="btn-cv" style="border-color:var(--danger);color:var(--danger)" onclick="unpay()">Desfazer</button>
-  </div>
+  <button class="btn-sv" onclick="confirmPay()">✓ Confirmar Pagamento</button>
+  <button id="btnUnpay" class="btn-cv" style="display:none;border-color:var(--danger);color:var(--danger);margin-top:6px" onclick="unpay()">↩ Desfazer Pagamento</button>
   <button class="btn-cv" onclick="closeM('mPay')">Cancelar</button>
 </div></div>
 
@@ -417,15 +415,54 @@ let payingId = null, valId = null, divPayId = null, cxType = null;
 function loadState() {
   const s = JSON.parse(localStorage.getItem('fc_v4')||'null');
   if (s) {
-    if(!s.mv) s.mv={};
-    if(!s.payments) s.payments={};
-    if(!s.transferencias) s.transferencias={};
-    // Migration: fix Água to day 5
-    s.entries.forEach(e=>{ if(e.name==='Água' && e.day===20) e.day=5; });
+    if(!s.mv)            s.mv={};
+    if(!s.payments)      s.payments={};
+    if(!s.transferencias)s.transferencias={};
+    if(!s.debts)         s.debts=[];
+    if(!s.debtPays)      s.debtPays=[];
+    if(!s.caixinha)      s.caixinha=[];
+    if(!s.gastos)        s.gastos=[];
+
+    // Fix Água to day 5
+    s.entries.forEach(e=>{ if(e.name==='Água'&&e.day===20) e.day=5; });
+
+    // Migrate old payment keys "id-year-month" → "e_id_year_month"
+    const oldPmts = Object.entries(s.payments).filter(([k])=>/^\d/.test(k));
+    oldPmts.forEach(([k,v])=>{
+      const parts=k.split('-');
+      if(parts.length===3) { const nk=`e_${parts[0]}_${parts[1]}_${parts[2]}`; s.payments[nk]=v; delete s.payments[k]; }
+    });
+    // Migrate old mv keys "id-year-month" → "vf_id_year_month"
+    const oldMv = Object.entries(s.mv||{}).filter(([k])=>/^\d/.test(k));
+    oldMv.forEach(([k,v])=>{
+      const parts=k.split('-');
+      if(parts.length===3) { const nk=`vf_${parts[0]}_${parts[1]}_${parts[2]}`; s.mv[nk]=v; delete s.mv[k]; }
+    });
+
+    // Clear all data before Março 2026
+    const START_M=2, START_Y=2026;
+    s.entries = s.entries.filter(e=> e.rec==='monthly'||e.type==='variable_fixed'||(e.year>START_Y||(e.year===START_Y&&e.month>=START_M)));
+    s.gastos  = s.gastos.filter(g=>  g.year>START_Y||(g.year===START_Y&&g.month>=START_M));
+    s.caixinha= s.caixinha.filter(t=> t.year>START_Y||(t.year===START_Y&&t.month>=START_M));
+    s.debtPays= s.debtPays.filter(p=> p.year>START_Y||(p.year===START_Y&&p.month>=START_M));
+    // Clean payments keys before start date
+    Object.keys(s.payments).forEach(k=>{
+      const parts=k.split('-'); const y=parseInt(parts[parts.length-2]),m=parseInt(parts[parts.length-1]);
+      if(!isNaN(y)&&!isNaN(m)&&(y<START_Y||(y===START_Y&&m<START_M))) delete s.payments[k];
+    });
+    Object.keys(s.mv).forEach(k=>{
+      const parts=k.split('-'); const y=parseInt(parts[parts.length-2]),m=parseInt(parts[parts.length-1]);
+      if(!isNaN(y)&&!isNaN(m)&&(y<START_Y||(y===START_Y&&m<START_M))) delete s.mv[k];
+    });
+    Object.keys(s.transferencias).forEach(k=>{
+      const parts=k.split('-'); const y=parseInt(parts[1]),m=parseInt(parts[2]);
+      if(!isNaN(y)&&!isNaN(m)&&(y<START_Y||(y===START_Y&&m<START_M))) delete s.transferencias[k];
+    });
+
     localStorage.setItem('fc_v4', JSON.stringify(s));
     return s;
   }
-  const ns = {entries:[],nextId:1,mv:{},payments:{},debts:[],nextDId:1,debtPays:[],nextDPId:1,caixinha:[],nextCxId:1,gastos:[],nextGId:1,transferencias:{}};
+  const ns={entries:[],nextId:1,mv:{},payments:{},debts:[],nextDId:1,debtPays:[],nextDPId:1,caixinha:[],nextCxId:1,gastos:[],nextGId:1,transferencias:{}};
   initDefs(ns);
   return ns;
 }
@@ -445,40 +482,30 @@ function initDefs(s) {
 function persist() { localStorage.setItem('fc_v4', JSON.stringify(S)); }
 
 // ============ HELPERS ============
-function pkey(id) { return `${id}-${cy}-${cm}`; }
-function mkey(id) { return `${id}-${cy}-${cm}`; }
+function pkey(id)  { return `e_${id}_${cy}_${cm}`; }   // regular entry payment key
+function dkey(did) { return `d_${did}_${cy}_${cm}`; }  // debt monthly payment key
+function mkey(id)  { return `vf_${id}_${cy}_${cm}`; }  // variable_fixed amount key
 
 function getAmt(e) {
   if (e.type==='variable_fixed') { const v=S.mv[mkey(e.id)]; return v!==undefined?v:null; }
   return e.amount;
 }
 
-function debtPkey(debtId) { return `debt_${debtId}-${cy}-${cm}`; }
-function isDebtPaid(debtId) { return !!(S.payments[debtPkey(debtId)]?.paid); }
-function debtPaidAmtM(debtId) { return S.payments[debtPkey(debtId)]?.amount||0; }
 
-function isPaid(id) {
-  if(typeof id === 'string' && id.startsWith('debt_')) {
-    const dId = parseInt(id.replace('debt_',''));
-    return isDebtPaid(dId);
-  }
-  return !!(S.payments[pkey(id)]?.paid);
+
+function _payKey(id) {
+  // id can be: number (regular entry), or string starting with 'd_' (debt monthly)
+  return (typeof id==='string'&&id.startsWith('d_')) ? id : pkey(id);
 }
-function paidAmt(id) {
-  if(typeof id === 'string' && id.startsWith('debt_')) {
-    const dId = parseInt(id.replace('debt_',''));
-    return debtPaidAmtM(dId);
-  }
-  return S.payments[pkey(id)]?.amount||0;
-}
+function isPaid(id)  { return !!(S.payments[_payKey(id)]?.paid); }
+function paidAmt(id) { return   S.payments[_payKey(id)]?.amount||0; }
 
 function debtVirtualEntries(day) {
-  // Active debts with a day become virtual entries in the plan
   return S.debts
-    .filter(d => d.day == day && d.monthly > 0 && debtRemaining(d) > 0)
+    .filter(d => d.day==day && d.monthly>0 && debtRemaining(d)>0)
     .map(d => ({
-      id: 'debt_' + d.id,  // prefixed so payments key is unique
-      name: d.name + (d.kind==='parcelada' ? ' (parcela)' : ''),
+      id: dkey(d.id),          // e.g. "d_1_2026_2" — unique per debt per month
+      name: d.name + (d.kind==='parcelada'?' (parcela)':''),
       type: 'debt',
       day: d.day,
       rec: 'monthly',
@@ -503,6 +530,14 @@ function sumT(arr, types) {
 
 function sumPaid(arr, types) {
   return arr.filter(e=>types.includes(e.type)&&isPaid(e.id)).reduce((s,e)=>s+paidAmt(e.id),0);
+}
+
+// Count paid items for a period
+function countPaidOut(ents) {
+  return ents.filter(e=>e.type!=='income'&&e.type!=='saving'&&isPaid(e.id)).length;
+}
+function countTotalOut(ents) {
+  return ents.filter(e=>e.type!=='income'&&e.type!=='saving').length;
 }
 
 function fmt(v,sign=false) {
@@ -570,13 +605,15 @@ function renderPlano() {
   const bal = day===5 ? bal05real : bal20real;
 
   const remaining = ents.filter(e=>e.type!=='income'&&e.type!=='saving'&&!isPaid(e.id)).reduce((s,e)=>s+(getAmt(e)||0),0);
-  const countPend = ents.filter(e=>e.type!=='income'&&e.type!=='saving'&&!isPaid(e.id)).length;
+  const countPend = countTotalOut(ents) - countPaidOut(ents);
 
+  const paidCount = countPaidOut(ents), totalCount = countTotalOut(ents);
+  const paidBar = totalCount>0?`${paidCount}/${totalCount} pago(s) · `:'';
   const alertHTML = bal<0
-    ? `<div class="alert-bar red">⚠️ Período no vermelho em ${fmt(Math.abs(bal))}</div>`
+    ? `<div class="alert-bar red">⚠️ ${paidBar}Período no vermelho em ${fmt(Math.abs(bal))}</div>`
     : bal < 200
-    ? `<div class="alert-bar yellow">⚡ Saldo apertado — sobra apenas ${fmt(bal)}</div>`
-    : `<div class="alert-bar green">✓ Sobra ${fmt(bal)} após pagar tudo</div>`;
+    ? `<div class="alert-bar yellow">⚡ ${paidBar}Saldo apertado — sobra ${fmt(bal)}</div>`
+    : `<div class="alert-bar green">✓ ${paidBar}Sobra ${fmt(bal)} após pagar tudo</div>`;
 
   // Widget de transferência — aparece nos dois dias
   const transfColor = transf > 0 ? 'rgba(192,132,252,.4)' : 'var(--border)';
@@ -639,7 +676,13 @@ function renderPlano() {
     </div>
     ${transfWidget}
     <div class="sec">
-      <div class="sec-hdr"><div class="sec-lbl">🔒 Despesas Fixas</div><button class="btn-add" onclick="openEntry('fixed',${day})">+</button></div>
+      <div class="sec-hdr">
+        <div class="sec-lbl">🔒 Despesas Fixas</div>
+        <div style="display:flex;gap:6px">
+          <button class="btn-add" style="width:auto;padding:0 10px;font-size:11px;font-family:var(--fh);font-weight:700" onclick="payAll(${day},'fixed')">✓ Todos</button>
+          <button class="btn-add" onclick="openEntry('fixed',${day})">+</button>
+        </div>
+      </div>
       <div class="ilist">${fixeds.map(itemH).join('')||emptyH()}</div>
     </div>
     ${vfixed.length?`
@@ -913,10 +956,18 @@ function renderDividas() {
         </div>
         <div class="track"><div class="fill ${p>70?'fill-ok':'fill-bad'}" style="width:${p}%"></div></div>
       </div>
-      <div class="div-actions">
-        ${!done?`<button class="div-pay-btn" onclick="openDivPay(${d.id},'${d.name}',${d.monthly||0})">+ Registrar Pagamento</button>`:'<button class="div-pay-btn" style="opacity:.5" disabled>Quitada ✓</button>'}
-        <button class="div-del-btn" onclick="delDiv(${d.id})">✕</button>
-      </div>
+      ${(()=>{
+        const thisMoPaid = d.day>0 ? !!(S.payments[dkey(d.id)]?.paid) : false;
+        return `<div class="div-actions">
+          ${!done?`
+            <button class="div-pay-btn" onclick="openDivPay(${d.id},'${d.name}',${d.monthly||0})"
+              style="${thisMoPaid?'background:rgba(107,255,184,.08);border-color:rgba(107,255,184,.3);color:var(--success)':''}">
+              ${thisMoPaid?'✓ Parcela paga este mês':'+ Registrar Pagamento'}
+            </button>`
+          :'<button class="div-pay-btn" style="opacity:.5" disabled>Quitada ✓</button>'}
+          <button class="div-del-btn" onclick="delDiv(${d.id})">✕</button>
+        </div>`;
+      })()}
     </div>`;
   }).join('');
 
@@ -1041,7 +1092,7 @@ function renderDash() {
             </div>
             <div class="iright">
               <div class="iamt neg">${fmt(getAmt(e)||0)}</div>
-              <button class="btn-pay" onclick="openPay(${e.id},'${e.name}',${getAmt(e)||0})"></button>
+              <button class="btn-pay" onclick="openPay('${e.id}','${e.name}',${getAmt(e)||0})"></button>
             </div>
           </div>`).join('')||emptyH()}
       </div>
@@ -1135,7 +1186,7 @@ function saveEntry() {
 function delEntry(id) {
   if(!confirm('Remover este item?'))return;
   S.entries=S.entries.filter(e=>e.id!==id);
-  delete S.payments[pkey(id)]; persist(); render();
+  delete S.payments[_payKey(id)]; persist(); render();
 }
 
 // ============ MODALS: Variable Amount ============
@@ -1158,39 +1209,47 @@ function saveVAmt() {
 function openPay(id, name, planned) {
   payingId=id;
   const alreadyPaid=isPaid(id);
-  document.getElementById('mPayTitle').textContent=(alreadyPaid?'Editar: ':'Marcar como Pago: ')+name;
-  document.getElementById('mPayInfo').textContent=`Valor planejado: ${fmt(planned)}`;
-  document.getElementById('pAmt').value=alreadyPaid?paidAmt(id):planned;
-  document.getElementById('mPay').querySelector('.btn-cv[style]').style.display=alreadyPaid?'block':'none';
+  document.getElementById('mPayTitle').textContent=(alreadyPaid?'✎ Editar: ':'✓ Pagar: ')+name;
+  document.getElementById('mPayInfo').textContent='Valor planejado: '+fmt(planned);
+  document.getElementById('pAmt').value=alreadyPaid?paidAmt(id):(planned||'');
+  const desfBtn=document.getElementById('btnUnpay');
+  if(desfBtn) desfBtn.style.display=alreadyPaid?'flex':'none';
   openM('mPay');
-  setTimeout(()=>document.getElementById('pAmt').select(),350);
+  setTimeout(()=>{const el=document.getElementById('pAmt');el.focus();el.select();},350);
 }
 
 function confirmPay() {
-  const v=parseFloat(document.getElementById('pAmt').value);
-  if(isNaN(v)||v<0)return;
-  
-  if(typeof payingId==='string'&&payingId.startsWith('debt_')) {
-    const dId = parseInt(payingId.replace('debt_',''));
-    // Mark as paid for this month AND register debt payment
-    S.payments[debtPkey(dId)]={paid:true,amount:v};
-    // Add to debtPays history
-    S.debtPays.push({id:S.nextDPId++,dId,amt:v,note:'Auto via Plano',date:new Date().toISOString(),month:cm,year:cy});
+  const v = parseFloat(document.getElementById('pAmt').value);
+  if(isNaN(v)||v<0) return;
+
+  const key = _payKey(payingId);
+
+  if(typeof payingId==='string'&&payingId.startsWith('d_')) {
+    // Debt virtual entry: payingId = "d_{debtId}_{year}_{month}"
+    const dId = parseInt(payingId.split('_')[1]);
+    // Remove previous auto-pay for this debt this month (avoid duplicates)
+    let idx=-1;
+    S.debtPays.forEach((p,i)=>{ if(p.dId===dId&&p.month===cm&&p.year===cy&&p._auto) idx=i; });
+    if(idx>=0) S.debtPays.splice(idx,1);
+    // Record payment
+    S.payments[key] = {paid:true, amount:v};
+    S.debtPays.push({id:S.nextDPId++, dId, amt:v, _auto:true, date:new Date().toISOString(), month:cm, year:cy});
   } else {
-    S.payments[pkey(payingId)]={paid:true,amount:v};
+    S.payments[key] = {paid:true, amount:v};
   }
   persist(); closeM('mPay'); render();
 }
 
 function unpay() {
-  if(typeof payingId==='string'&&payingId.startsWith('debt_')) {
-    const dId = parseInt(payingId.replace('debt_',''));
-    delete S.payments[debtPkey(dId)];
-    // Remove last debtPay for this month
-    let idx=-1; S.debtPays.forEach((p,i)=>{if(p.dId===dId&&p.month===cm&&p.year===cy&&p.note==='Auto via Plano')idx=i;});
+  const key = _payKey(payingId);
+  if(typeof payingId==='string'&&payingId.startsWith('d_')) {
+    const dId = parseInt(payingId.split('_')[1]);
+    delete S.payments[key];
+    let idx=-1;
+    S.debtPays.forEach((p,i)=>{ if(p.dId===dId&&p.month===cm&&p.year===cy&&p._auto) idx=i; });
     if(idx>=0) S.debtPays.splice(idx,1);
   } else {
-    delete S.payments[pkey(payingId)];
+    delete S.payments[key];
   }
   persist(); closeM('mPay'); render();
 }
@@ -1380,15 +1439,29 @@ function fabAction() {
 
 function setSubDay(d) { subDay=d; render(); }
 
+function goToToday() {
+  const now = new Date();
+  cm = now.getMonth();
+  cy = now.getFullYear();
+  // clamp to >= March 2026
+  if(cy<2026||(cy===2026&&cm<2)){cm=2;cy=2026;}
+  render();
+}
+
 function chM(dir) {
   cm+=dir;
   if(cm>11){cm=0;cy++;} if(cm<0){cm=11;cy--;}
+  // clamp to March 2026
+  if(cy<2026||(cy===2026&&cm<2)){cm=2;cy=2026;}
   render();
 }
 
 // ============ RENDER ROUTER ============
 function render() {
+  const now=new Date();
+  const isCurMo=(cm===now.getMonth()&&cy===now.getFullYear());
   document.getElementById('mlbl').textContent=MS[cm]+' '+cy;
+  document.getElementById('mlbl').style.color=isCurMo?'var(--d5)':'var(--text2)';
   if(curPage==='plano')renderPlano();
   else if(curPage==='gastos')renderGastos();
   else if(curPage==='caixinha')renderCaixinha();
@@ -1396,6 +1469,24 @@ function render() {
   else if(curPage==='dash')renderDash();
 }
 
+
+
+// ============ UX: Pay All ============
+function payAll(day, type) {
+  const ents = periodEntries(day).filter(e=>e.type===type&&!isPaid(e.id));
+  if(!ents.length) return;
+  ents.forEach(e=>{
+    const v = getAmt(e)||0;
+    const key = _payKey(e.id);
+    if(!S.payments[key]) {
+      S.payments[key]={paid:true,amount:v};
+      if(e.type==='debt'&&e._debtId) {
+        S.debtPays.push({id:S.nextDPId++,dId:e._debtId,amt:v,_auto:true,date:new Date().toISOString(),month:cm,year:cy});
+      }
+    }
+  });
+  persist(); render();
+}
 
 // ============ SETTINGS ============
 function openSettings() {

@@ -117,7 +117,6 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fm);min-height:100dv
 .fill{height:100%;border-radius:99px;transition:width .5s ease}
 .f-ok{background:linear-gradient(90deg,var(--ok),#22d3ee)}
 .f-err{background:linear-gradient(90deg,var(--err),#f97316)}
-.f-sav{background:linear-gradient(90deg,var(--sav),#818cf8)}
 .pbar-sub{display:flex;justify-content:space-between;margin-top:6px;font-size:10px;color:var(--mu)}
 .dcard{background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:13px;margin:0 16px 9px}
 .dcard.ddone{opacity:.5}
@@ -208,7 +207,7 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fm);min-height:100dv
   <div class="mhandle"></div>
   <div class="mtitle" id="mEntryTitle">Novo Lance</div>
   <div class="field"><label>Descri&#231;&#227;o</label><input id="eN" placeholder="Ex: Cart&#227;o, Sal&#225;rio..." autocomplete="off"></div>
-  <div class="field" id="eAmtF"><label>Valor (R$)</label><input type="number" id="eAmt" placeholder="0,00" step="0.01" min="0"></div>
+  <div class="field" id="eAmtF"><label>Valor (R$)</label><input type="number" id="eAmt" placeholder="0,00" step="0.01" min="0" inputmode="decimal"></div>
   <div class="field"><label>Tipo</label>
     <select id="eType" onchange="onEType()">
       <option value="income">&#x1F4B0; Entrada / Sal&#225;rio</option>
@@ -227,7 +226,7 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fm);min-height:100dv
 <div class="mbg" id="mVF"><div class="modal">
   <div class="mhandle"></div>
   <div class="mtitle" id="mVFTitle">Valor deste M&#234;s</div>
-  <div class="field"><label>Valor (R$)</label><input type="number" id="vfAmt" placeholder="0,00" step="0.01" min="0"></div>
+  <div class="field"><label>Valor (R$)</label><input type="number" id="vfAmt" placeholder="0,00" step="0.01" min="0" inputmode="decimal"></div>
   <button class="btn-save" onclick="saveVF()">Salvar</button>
   <button class="btn-cancel" onclick="closeM('mVF')">Cancelar</button>
 </div></div>
@@ -235,7 +234,7 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fm);min-height:100dv
   <div class="mhandle"></div>
   <div class="mtitle" id="mPayTitle">Marcar como Pago</div>
   <div class="ibox" id="mPayInfo"></div>
-  <div class="field"><label>Valor Pago (R$)</label><input type="number" id="payAmt" step="0.01" min="0"></div>
+  <div class="field"><label>Valor Pago (R$)</label><input type="number" id="payAmt" step="0.01" min="0" inputmode="decimal"></div>
   <button class="btn-save" onclick="confirmPay()">&#x2713; Confirmar</button>
   <button class="btn-danger" id="btnUnpay" onclick="undoPay()">&#x21A9; Desfazer Pagamento</button>
   <button class="btn-cancel" onclick="closeM('mPay')">Cancelar</button>
@@ -251,28 +250,28 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fm);min-height:100dv
       <option value="open">&#x1F4B3; Em aberto</option>
     </select></div>
   <div id="dParcF">
-    <div class="field"><label>Valor Total (R$)</label><input type="number" id="dTotal" placeholder="0,00" step="0.01" min="0" oninput="calcParc()"></div>
+    <div class="field"><label>Valor Total (R$)</label><input type="number" id="dTotal" placeholder="0,00" step="0.01" min="0" oninput="calcParc()" inputmode="decimal"></div>
     <div class="row2">
-      <div class="field"><label>N&#186; Parcelas</label><input type="number" id="dNP" placeholder="12" min="1" step="1" oninput="calcParc()"></div>
-      <div class="field"><label>J&#225; Pagas</label><input type="number" id="dPagas" placeholder="0" min="0" step="1" value="0" oninput="calcParc()"></div>
+      <div class="field"><label>N&#186; Parcelas</label><input type="number" id="dNP" placeholder="12" min="1" step="1" oninput="calcParc()" inputmode="numeric"></div>
+      <div class="field"><label>J&#225; Pagas</label><input type="number" id="dPagas" placeholder="0" min="0" step="1" value="0" oninput="calcParc()" inputmode="numeric"></div>
     </div>
-    <div class="field"><label>Valor da Parcela (R$)</label><input type="number" id="dParc" placeholder="Calculado auto..." step="0.01" min="0" oninput="calcParcRev()"></div>
+    <div class="field"><label>Valor da Parcela (R$)</label><input type="number" id="dParc" placeholder="Calculado auto..." step="0.01" min="0" oninput="calcParcRev()" inputmode="decimal"></div>
     <div class="ibox iok" id="dParcInfo" style="display:none"></div>
   </div>
   <div id="dOpenF" style="display:none">
-    <div class="field"><label>Valor Total (R$)</label><input type="number" id="dTotalO" placeholder="0,00" step="0.01" min="0"></div>
-    <div class="field"><label>J&#225; Paguei (R$)</label><input type="number" id="dPaidO" placeholder="0,00" step="0.01" min="0" value="0"></div>
-    <div class="field"><label>Parcela Mensal (R$)</label><input type="number" id="dMthO" placeholder="0,00" step="0.01" min="0"></div>
+    <div class="field"><label>Valor Total (R$)</label><input type="number" id="dTotalO" placeholder="0,00" step="0.01" min="0" inputmode="decimal"></div>
+    <div class="field"><label>J&#225; Paguei (R$)</label><input type="number" id="dPaidO" placeholder="0,00" step="0.01" min="0" value="0" inputmode="decimal"></div>
+    <div class="field"><label>Parcela Mensal (R$)</label><input type="number" id="dMthO" placeholder="0,00" step="0.01" min="0" inputmode="decimal"></div>
   </div>
   <div class="field"><label>Dia de Cobran&#231;a</label>
     <select id="dDay"><option value="5">Dia 05</option><option value="20">Dia 20</option></select></div>
   <div class="row2">
     <div class="field"><label>M&#234;s In&#237;cio</label><select id="dSM"></select></div>
-    <div class="field"><label>Ano In&#237;cio</label><input type="number" id="dSY" min="2026" max="2040" step="1"></div>
+    <div class="field"><label>Ano In&#237;cio</label><input type="number" id="dSY" min="2026" max="2040" step="1" inputmode="decimal"></div>
   </div>
   <div class="row2">
     <div class="field"><label>M&#234;s Fim (opcional)</label><select id="dEM"></select></div>
-    <div class="field"><label>Ano Fim</label><input type="number" id="dEY" min="2026" max="2040" step="1" placeholder="&#8212;"></div>
+    <div class="field"><label>Ano Fim</label><input type="number" id="dEY" min="2026" max="2040" step="1" placeholder="&#8212;" inputmode="decimal"></div>
   </div>
   <div class="field"><label>Observa&#231;&#227;o</label><input id="dNote" placeholder="opcional" autocomplete="off"></div>
   <button class="btn-save" onclick="saveDebt()">Salvar D&#237;vida</button>
@@ -281,7 +280,7 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fm);min-height:100dv
 <div class="mbg" id="mDPay"><div class="modal">
   <div class="mhandle"></div>
   <div class="mtitle" id="mDPayTitle">Registrar Pagamento</div>
-  <div class="field"><label>Valor (R$)</label><input type="number" id="dpAmt" step="0.01" min="0"></div>
+  <div class="field"><label>Valor (R$)</label><input type="number" id="dpAmt" step="0.01" min="0" inputmode="decimal"></div>
   <div class="field"><label>Observa&#231;&#227;o</label><input id="dpNote" placeholder="opcional" autocomplete="off"></div>
   <button class="btn-save" onclick="saveDPay()">Confirmar</button>
   <button class="btn-cancel" onclick="closeM('mDPay')">Cancelar</button>
@@ -290,7 +289,7 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fm);min-height:100dv
   <div class="mhandle"></div>
   <div class="mtitle">Gasto do Dia a Dia</div>
   <div class="field"><label>Descri&#231;&#227;o</label><input id="gDesc" placeholder="Ex: Mercado, iFood..." autocomplete="off"></div>
-  <div class="field"><label>Valor (R$)</label><input type="number" id="gAmt" placeholder="0,00" step="0.01" min="0"></div>
+  <div class="field"><label>Valor (R$)</label><input type="number" id="gAmt" placeholder="0,00" step="0.01" min="0" inputmode="decimal"></div>
   <div class="field"><label>Categoria</label>
     <select id="gCat">
       <option>&#x1F6D2; Mercado</option><option>&#x26FD; Combust&#237;vel</option><option>&#x1F48A; Farm&#225;cia</option>
@@ -304,7 +303,7 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fm);min-height:100dv
   <div class="mhandle"></div>
   <div class="mtitle" id="mCxTitle">Caixinha</div>
   <div class="field"><label>Descri&#231;&#227;o</label><input id="cxDesc" placeholder="Ex: Sobra do m&#234;s..." autocomplete="off"></div>
-  <div class="field"><label>Valor (R$)</label><input type="number" id="cxAmt" placeholder="0,00" step="0.01" min="0"></div>
+  <div class="field"><label>Valor (R$)</label><input type="number" id="cxAmt" placeholder="0,00" step="0.01" min="0" inputmode="decimal"></div>
   <button class="btn-save" id="cxSave" onclick="saveCx()">Salvar</button>
   <button class="btn-cancel" onclick="closeM('mCx')">Cancelar</button>
 </div></div>
@@ -312,7 +311,7 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fm);min-height:100dv
   <div class="mhandle"></div>
   <div class="mtitle">&#x1F4B8; Quanto guardou pro Dia 20?</div>
   <div class="ibox">Valor separado do Dia 05 para cobrir as contas do Dia 20. Sai do saldo do Dia 05 e entra como receita no Dia 20.</div>
-  <div class="field"><label>Valor (R$)</label><input type="number" id="trAmt" placeholder="0,00" step="0.01" min="0"></div>
+  <div class="field"><label>Valor (R$)</label><input type="number" id="trAmt" placeholder="0,00" step="0.01" min="0" inputmode="decimal"></div>
   <button class="btn-save" onclick="saveTransf()">Salvar</button>
   <button class="btn-cancel" onclick="closeM('mTransf')">Cancelar</button>
 </div></div>
@@ -395,6 +394,8 @@ function paidAmt(pid){
 }
 
 // Entry helpers
+// Helpers
+function planned(e){const v=eAmt(e);return v!=null?v:e.amount||0;}
 function eAmt(e){
   if(e.type==='vf'){const v=S.vfAmts[vfK(e.id)];return v!==undefined?v:null;}
   return e.amount;
@@ -432,11 +433,11 @@ function calcPeriod(day){
   const inc=ents.filter(e=>e.type==='income');
   const exp=ents.filter(e=>e.type!=='income');
   const totalIn=inc.reduce((s,e)=>s+(eAmt(e)||0),0);
-  const totalOut=exp.reduce((s,e)=>s+(eAmt(e)!=null?eAmt(e):e.amount||0),0);
+  const totalOut=exp.reduce((s,e)=>s+(planned(e)),0);
   const tr=S.transfers[trK()]||0;
   const bal=day===5?totalIn-totalOut-tr:(totalIn+tr)-totalOut;
   const paidOut=exp.filter(e=>isPaid(e.pid)).reduce((s,e)=>s+paidAmt(e.pid),0);
-  const rem=exp.filter(e=>!isPaid(e.pid)).reduce((s,e)=>s+(eAmt(e)!=null?eAmt(e):e.amount||0),0);
+  const rem=exp.filter(e=>!isPaid(e.pid)).reduce((s,e)=>s+(planned(e)),0);
   const pC=exp.filter(e=>isPaid(e.pid)).length;
   return{ents,inc,exp,totalIn,totalOut,tr,bal,paidOut,rem,pC,tC:exp.length};
 }
@@ -498,7 +499,7 @@ function sec(label,items,day,addType,showAll){
 }
 function itemH(e){
   const paid=isPaid(e.pid);
-  const pl=eAmt(e)!=null?eAmt(e):e.amount||0;
+  const pl=planned(e);
   const pa=paidAmt(e.pid);
   const isInc=e.type==='income',isDbt=e.type==='debt',isVF=e.type==='vf';
   const ico={income:'\uD83D\uDCB0',fixed:'\uD83D\uDD12',variable:'\uD83D\uDCCC',vf:'\u26A1',debt:'\uD83D\uDCB3'};
@@ -509,7 +510,7 @@ function itemH(e){
   else amtH=`<div class="iamt ${isInc?'vok':'verr'}">${isInc?'+':'\u2212'}${fmt(pl)}</div>`;
   const dSub=isDbt&&e._rem!==undefined?`<span>${fmt(e._rem)} restante${e._np?' \u00b7 '+e._np+'x':''}</span>`:'';
   const editB=isVF?`<button class="btn-edit" onclick="openVF(${e.id},'${e.name.replace(/'/g,"\\'")}')">&#9998;</button>`:'';
-  const payB=!isInc?`<button class="btn-pay ${paid?'done':''}" onclick="openPay('${e.pid}','${e.name.replace(/'/g,"\\'")}',${pl})"> ${paid?'&#x2713;':''}</button>`:'';
+  const payB=!isInc?`<button class="btn-pay ${paid?'done':''}" onclick="openPay('${e.pid}','${e.name.replace(/'/g,"\\'")}',${pl})">${paid?'&#x2713;':''}</button>`:'';
   const delB=!isDbt?`<button class="btn-del" onclick="delEntry(${e.id})">&#10005;</button>`:'';
   return `<div class="itm ${paid?'pd':''}">
     <div class="iico t${e.type||'fixed'}">${ico[e.type]||'\uD83D\uDCCC'}</div>
@@ -527,7 +528,7 @@ function renderDividas(){
   const tPago=S.debts.reduce((s,d)=>s+debtPaidTotal(d),0);
   const pct=tTotal>0?Math.min(100,Math.round(tPago/tTotal*100)):0;
   const cards=S.debts.map(d=>{
-    const rest=debtRem(d),paid=debtPaidTotal(d),p=d.total>0?Math.min(100,Math.round(paid/d.total*100)):0;
+    const paid=debtPaidTotal(d),rest=Math.max(0,d.total-paid),p=d.total>0?Math.min(100,Math.round(paid/d.total*100)):0;
     const done=rest<=0;const mRest=d.monthly>0?Math.ceil(rest/d.monthly):null;
     const thisMo=!!(S.debtMo[dpK(d.id)]);
     const period=`${MS[d.startM]} ${d.startY}`+(d.endM!=null&&d.endY?` \u2192 ${MS[d.endM]} ${d.endY}`:'');
@@ -606,7 +607,10 @@ function renderDash(){
   if(pct===100)ins.push({t:'iok',m:`\u2713 Todas as contas de ${MS[curM]} est\u00e3o pagas! \uD83C\uDF89`});
   pg.innerHTML=`<div class="ptitle" style="display:flex;align-items:center;justify-content:space-between;padding-right:16px">
     <div>&#x1F4CA; <span class="hl">Dashboard</span></div>
-    <button onclick="syncSheets()" id="syncBtn" class="btn-sm" style="padding:7px 12px;font-size:11px">&#x1F4E4; Sincronizar</button>
+    <div style="display:flex;gap:6px">
+      <button onclick="syncSheets()" id="syncBtn" class="btn-sm" style="padding:7px 12px;font-size:11px">&#x1F4E4; Sync</button>
+      <button onclick="openReport()" class="btn-sm" style="padding:7px 12px;font-size:11px;border-color:var(--sav);color:var(--sav)">&#x1F4CB; Relat&#243;rio</button>
+    </div>
   </div>
   <div class="pbar-wrap" style="margin-top:13px"><div class="pbar-hdr"><div class="pbar-ttl">Contas Pagas em ${MS[curM]}</div><div class="pbar-pct">${pct}%</div></div><div class="track"><div class="fill f-ok" style="width:${pct}%"></div></div><div class="pbar-sub"><span>${fmt(tPd)} pago</span><span>${fmt(tPl)} planejado</span></div></div>
   <div class="cards">
@@ -645,7 +649,14 @@ function saveEntry(){
   if(rec==='once'){e.month=curM;e.year=curY;}
   S.entries.push(e);persist();closeM('mEntry');render();
 }
-function delEntry(id){if(!confirm('Remover?'))return;S.entries=S.entries.filter(e=>e.id!==id);persist();render();}
+function delEntry(id){
+  if(!confirm('Remover?'))return;
+  S.entries=S.entries.filter(e=>e.id!==id);
+  // clean orphaned payment and vf keys
+  Object.keys(S.payments).forEach(k=>{if(k.includes(`_${id}_`))delete S.payments[k];});
+  Object.keys(S.vfAmts).forEach(k=>{if(k.startsWith(`vf_${id}_`))delete S.vfAmts[k];});
+  persist();render();
+}
 
 function openVF(id,name){
   _vfId=id;document.getElementById('mVFTitle').textContent=name+' \u2014 '+MS[curM];
@@ -692,7 +703,7 @@ function undoPay(){
 }
 function payAll(type,day){
   periodEntries(day).filter(e=>e.type===type&&!isPaid(e.pid)).forEach(e=>{
-    const v=eAmt(e)!=null?eAmt(e):e.amount||0;
+    const v=planned(e);
     if(v>0)S.payments[payK(+e.pid.slice(2))]={amt:v};
   });persist();render();
 }
@@ -768,7 +779,7 @@ function saveDPay(){
   const dk=dpK(_dpId),prev=S.debtMo[dk];
   if(prev){let i=-1;S.debtPays.forEach((p,j)=>{if(p.dId===_dpId&&p.y===curY&&p.m===curM&&p._auto)i=j;});if(i>=0)S.debtPays.splice(i,1);}
   S.debtMo[dk]={amt:v};
-  S.debtPays.push({id:S.nextDPId++,dId:_dpId,amt:v,_auto:true,date:new Date().toISOString(),y:curY,m:curM});
+  S.debtPays.push({id:S.nextDPId++,dId:_dpId,amt:v,note:document.getElementById('dpNote').value.trim(),_auto:true,date:new Date().toISOString(),y:curY,m:curM});
   persist();closeM('mDPay');render();
 }
 function openGasto(){document.getElementById('gDesc').value='';document.getElementById('gAmt').value='';openM('mGasto');setTimeout(()=>document.getElementById('gDesc').focus(),320);}
@@ -803,7 +814,7 @@ function go(page){
   render();
 }
 function fabAct(){
-  if(curPage==='plano')openEntry(null,subDay);
+  if(curPage==='plano')openEntry('fixed',subDay);
   else if(curPage==='dividas')openDebt();
   else if(curPage==='gastos')openGasto();
   else if(curPage==='caixinha')openCx('in');
@@ -829,10 +840,10 @@ function buildPayload(){
       gastos:S.gastos.filter(g=>g.y===curY&&g.m===curM).reduce((s,g)=>s+g.amt,0),
       caixinha:S.caixinha.reduce((s,t)=>s+(t.type==='in'?t.amt:-t.amt),0),
       dividas:S.debts.reduce((s,d)=>s+debtRem(d),0)},
-    dia05:c5.exp.map(e=>({name:e.name,type:e.type,planned:eAmt(e)!=null?eAmt(e):e.amount||0,paid:isPaid(e.pid),paidAmt:paidAmt(e.pid)})),
-    dia20:c20.exp.map(e=>({name:e.name,type:e.type,planned:eAmt(e)!=null?eAmt(e):e.amount||0,paid:isPaid(e.pid),paidAmt:paidAmt(e.pid)})),
+    dia05:c5.exp.map(e=>({name:e.name,type:e.type,planned:planned(e),paid:isPaid(e.pid),paidAmt:paidAmt(e.pid)})),
+    dia20:c20.exp.map(e=>({name:e.name,type:e.type,planned:planned(e),paid:isPaid(e.pid),paidAmt:paidAmt(e.pid)})),
     gastos:S.gastos.filter(g=>g.y===curY&&g.m===curM).map(g=>({date:fdate(g.date),cat:g.cat,desc:g.desc,amt:g.amt})),
-    dividas:S.debts.map(d=>({name:d.name,who:d.who,kind:d.kind,note:d.note,day:d.day,total:d.total,paid:debtPaidTotal(d),remaining:debtRem(d),monthly:d.monthly,startM:d.startM,startY:d.startY,endM:d.endM,endY:d.endY,nParcelas:d.nParcelas||0,monthly:d.monthly})),
+    dividas:S.debts.map(d=>({name:d.name,who:d.who,kind:d.kind,note:d.note,day:d.day,total:d.total,paid:debtPaidTotal(d),remaining:debtRem(d),monthly:d.monthly,startM:d.startM,startY:d.startY,endM:d.endM,endY:d.endY,nParcelas:d.nParcelas||0})),
     caixinha:S.caixinha.filter(t=>t.y===curY&&t.m===curM).map(t=>({date:fdate(t.date),type:t.type,desc:t.desc,amt:t.amt})),
     _state: JSON.stringify(S)  // full state backup
   };
@@ -887,6 +898,193 @@ async function pullFromSheets(){
   }
 }
 
+
+// ─── RELATÓRIO CLAUDE ───
+function openReport(){
+  const txt = buildReport();
+  document.getElementById('reportTxt').value = txt;
+  document.getElementById('reportCopied').textContent = '';
+  openM('mReport');
+}
+
+function copyReport(){
+  const ta = document.getElementById('reportTxt');
+  ta.select();
+  ta.setSelectionRange(0, 99999);
+  try {
+    navigator.clipboard.writeText(ta.value).then(()=>{
+      document.getElementById('reportCopied').textContent = '✓ Copiado! Agora cole numa conversa com o Claude.';
+    }).catch(()=>{ document.execCommand('copy'); document.getElementById('reportCopied').textContent = '✓ Copiado!'; });
+  } catch(e) {
+    document.execCommand('copy');
+    document.getElementById('reportCopied').textContent = '✓ Copiado!';
+  }
+}
+
+function buildReport(){
+  const now = new Date();
+  const lines = [];
+  const h = (t) => lines.push('\n' + '═'.repeat(48) + '\n' + t + '\n' + '═'.repeat(48));
+  const s = (t) => lines.push('\n── ' + t + ' ──');
+  const l = (t) => lines.push(t);
+
+  lines.push('RELATÓRIO FINANCEIRO COMPLETO — MEU CAIXA');
+  lines.push('Gerado em: ' + now.toLocaleDateString('pt-BR') + ' às ' + now.toLocaleTimeString('pt-BR'));
+  lines.push('Referência: ' + MS[curM] + '/' + curY);
+
+  // ── VISÃO GERAL DO MÊS ──
+  h('VISÃO GERAL — ' + MS[curM].toUpperCase() + ' ' + curY);
+  const c5 = calcPeriod(5), c20 = calcPeriod(20);
+  const tr = S.transfers[trK()] || 0;
+  const gasT = S.gastos.filter(g=>g.y===curY&&g.m===curM).reduce((s,g)=>s+g.amt,0);
+  const cxBal = S.caixinha.reduce((s,t)=>s+(t.type==='in'?t.amt:-t.amt),0);
+  const dRest = S.debts.reduce((s,d)=>s+debtRem(d),0);
+
+  l('Salários Dia 05:    ' + fmt(c5.totalIn));
+  l('Salários Dia 20:    ' + fmt(c20.totalIn));
+  l('Total Receitas:     ' + fmt(c5.totalIn + c20.totalIn));
+  l('Transferência D05→D20: ' + fmt(tr));
+  l('');
+  l('Despesas Dia 05:    ' + fmt(c5.totalOut));
+  l('Despesas Dia 20:    ' + fmt(c20.totalOut));
+  l('Total Despesas:     ' + fmt(c5.totalOut + c20.totalOut));
+  l('');
+  l('Saldo Dia 05:       ' + fmt(c5.bal) + (c5.bal < 0 ? ' ⚠️ NEGATIVO' : ' ✓'));
+  l('Saldo Dia 20:       ' + fmt(c20.bal) + (c20.bal < 0 ? ' ⚠️ NEGATIVO' : ' ✓'));
+  l('');
+  l('Gastos Dia a Dia:   ' + fmt(gasT));
+  l('Caixinha (saldo):   ' + fmt(cxBal));
+  l('Dívidas em aberto:  ' + fmt(dRest));
+  l('');
+  l('Contas pagas D05:   ' + c5.pC + '/' + c5.tC);
+  l('Contas pagas D20:   ' + c20.pC + '/' + c20.tC);
+
+  // ── DIA 05 ──
+  h('PLANO DIA 05');
+  const ents5 = periodEntries(5);
+  const inc5 = ents5.filter(e=>e.type==='income');
+  const exp5 = ents5.filter(e=>e.type!=='income');
+  s('Entradas');
+  inc5.forEach(e => l('  + ' + e.name.padEnd(22) + fmt(planned(e))));
+  s('Despesas Fixas / Variáveis');
+  exp5.forEach(e => {
+    const pg = isPaid(e.pid);
+    const val = planned(e);
+    const pa = paidAmt(e.pid);
+    const status = pg ? ('✓ pago ' + fmt(pa) + (pa !== val ? ' (plan. '+fmt(val)+')' : '')) : '○ pendente';
+    l('  ' + (pg?'✓':'○') + ' ' + e.name.padEnd(22) + fmt(val) + '  ' + status.replace(fmt(pa),'').replace('✓ pago','').trim());
+  });
+
+  // ── DIA 20 ──
+  h('PLANO DIA 20');
+  const ents20 = periodEntries(20);
+  const inc20 = ents20.filter(e=>e.type==='income');
+  const exp20 = ents20.filter(e=>e.type!=='income');
+  s('Entradas');
+  inc20.forEach(e => l('  + ' + e.name.padEnd(22) + fmt(planned(e))));
+  if(tr > 0) l('  + Recebido do Dia 05     ' + fmt(tr));
+  s('Despesas Fixas / Variáveis');
+  exp20.forEach(e => {
+    const pg = isPaid(e.pid);
+    const val = planned(e);
+    const pa = paidAmt(e.pid);
+    l('  ' + (pg?'✓':'○') + ' ' + e.name.padEnd(22) + fmt(val) + (pg ? '  ✓ pago '+fmt(pa) : '  ○ pendente'));
+  });
+
+  // ── DÍVIDAS ──
+  h('DÍVIDAS');
+  if(S.debts.length === 0){
+    l('Nenhuma dívida cadastrada. 🎉');
+  } else {
+    S.debts.forEach(d => {
+      const rest = debtRem(d);
+      const paid = debtPaidTotal(d);
+      const pct = d.total > 0 ? Math.round(paid/d.total*100) : 0;
+      const done = rest <= 0;
+      l('');
+      l((done?'✓ QUITADA':'● ATIVA') + ' — ' + d.name + (d.who?' ('+d.who+')':''));
+      l('  Tipo:      ' + (d.kind==='parc'?'Parcelada':'Em aberto'));
+      l('  Total:     ' + fmt(d.total));
+      l('  Pago:      ' + fmt(paid) + ' (' + pct + '%)');
+      l('  Restante:  ' + fmt(rest));
+      l('  Parcela:   ' + fmt(d.monthly) + '/mês — Dia ' + String(d.day).padStart(2,'0'));
+      l('  Período:   ' + MS[d.startM]+'/'+d.startY + (d.endM!=null&&d.endY?' → '+MS[d.endM]+'/'+d.endY:''));
+      if(d.note) l('  Obs:       ' + d.note);
+      const mPago = !!(S.debtMo[dpK(d.id)]);
+      l('  Este mês:  ' + (mPago ? '✓ parcela paga' : '○ parcela pendente'));
+    });
+    l('');
+    l('TOTAL EM DÍVIDAS: ' + fmt(dRest));
+  }
+
+  // ── GASTOS DO MÊS ──
+  h('GASTOS DO DIA A DIA — ' + MS[curM].toUpperCase() + ' ' + curY);
+  const gs = S.gastos.filter(g=>g.y===curY&&g.m===curM);
+  if(gs.length === 0){
+    l('Nenhum gasto lançado neste mês.');
+  } else {
+    const byCat = {};
+    gs.forEach(g=>{ if(!byCat[g.cat]) byCat[g.cat]=0; byCat[g.cat]+=g.amt; });
+    s('Por categoria');
+    Object.entries(byCat).sort((a,b)=>b[1]-a[1]).forEach(([cat,amt])=>{
+      const pct = gasT > 0 ? Math.round(amt/gasT*100) : 0;
+      l('  ' + cat.padEnd(24) + fmt(amt) + '  (' + pct + '%)');
+    });
+    s('Lançamentos');
+    [...gs].reverse().forEach(g => {
+      l('  ' + fdate(g.date) + '  ' + g.desc.padEnd(22) + fmt(g.amt) + '  ' + g.cat.substring(2));
+    });
+    l('');
+    l('TOTAL GASTOS: ' + fmt(gasT));
+  }
+
+  // ── CAIXINHA ──
+  h('CAIXINHA (POUPANÇA)');
+  l('Saldo atual: ' + fmt(cxBal));
+  l('');
+  const cxMes = S.caixinha.filter(t=>t.y===curY&&t.m===curM);
+  if(cxMes.length > 0){
+    s('Movimentações de ' + MS[curM]);
+    cxMes.forEach(t => l('  ' + (t.type==='in'?'+':'-') + ' ' + fmt(t.amt) + '  ' + t.desc + '  (' + fdate(t.date) + ')'));
+  }
+  if(S.caixinha.length > cxMes.length){
+    s('Histórico geral');
+    [...S.caixinha].reverse().slice(0,20).forEach(t => l('  ' + MS[t.m]+'/'+t.y + '  ' + (t.type==='in'?'+':'-') + fmt(t.amt) + '  ' + t.desc));
+  }
+
+  // ── HISTÓRICO DE MESES ANTERIORES ──
+  h('HISTÓRICO MESES ANTERIORES');
+  // find unique months in gastos (last 6)
+  const monthsSet = new Set();
+  S.gastos.forEach(g => monthsSet.add(g.y+'-'+String(g.m).padStart(2,'0')));
+  const months = [...monthsSet].sort().reverse().slice(0,6);
+  months.forEach(mk => {
+    const [my, mm] = mk.split('-').map(Number);
+    if(my===curY && mm===curM) return; // skip current
+    const mGs = S.gastos.filter(g=>g.y===my&&g.m===mm);
+    const mTotal = mGs.reduce((s,g)=>s+g.amt,0);
+    l(MS[mm]+'/'+my + ' — Gastos: ' + fmt(mTotal) + ' (' + mGs.length + ' lançamentos)');
+  });
+
+  // ── ANÁLISE / CONTEXTO ──
+  h('CONTEXTO PARA ANÁLISE');
+  const totalRec = c5.totalIn + c20.totalIn;
+  const totalDesp = c5.totalOut + c20.totalOut;
+  const sobra = c20.bal;
+  const compDesp = totalDesp > 0 ? Math.round(totalDesp/totalRec*100) : 0;
+  const compDiv = totalRec > 0 ? Math.round(dRest/totalRec*100) : 0;
+  l('Receita total:        ' + fmt(totalRec));
+  l('Despesas fixas total: ' + fmt(totalDesp) + ' (' + compDesp + '% da receita)');
+  l('Sobra do mês:         ' + fmt(sobra));
+  l('Gastos variáveis:     ' + fmt(gasT));
+  l('Dívidas = ' + compDiv + 'x o salário mensal');
+  l('');
+  l('--- FIM DO RELATÓRIO ---');
+  l('Cole este texto numa conversa com o Claude para análise e planejamento.');
+
+  return lines.join('\n');
+}
+
 // ─── RENDER ───
 function render(){
   const n=new Date(),isNow=(curM===n.getMonth()&&curY===n.getFullYear());
@@ -903,5 +1101,17 @@ load();
 document.getElementById('cfgUrl').value=localStorage.getItem('cfg_url')||'';
 render();
 </script>
+
+<div class="mbg" id="mReport"><div class="modal" style="padding-bottom:32px">
+  <div class="mhandle"></div>
+  <div class="mtitle">&#x1F4CB; Relat&#243;rio para Claude</div>
+  <div class="ibox" style="margin-bottom:10px;line-height:1.7">
+    Copie tudo abaixo e cole numa conversa comigo (Claude) para an&#225;lise completa da sua vida financeira.
+  </div>
+  <textarea id="reportTxt" readonly style="width:100%;height:240px;background:var(--bg);border:1.5px solid var(--bd);border-radius:9px;color:var(--tx);font-family:var(--fm);font-size:10px;padding:10px;line-height:1.6;resize:none;outline:none"></textarea>
+  <button class="btn-save" style="margin-top:10px" onclick="copyReport()">&#x1F4CB; Copiar Tudo</button>
+  <div id="reportCopied" style="text-align:center;font-size:11px;color:var(--ok);margin-top:6px;min-height:16px"></div>
+  <button class="btn-cancel" onclick="closeM('mReport')">Fechar</button>
+</div></div>
 </body>
 </html>

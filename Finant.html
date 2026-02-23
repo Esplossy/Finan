@@ -1017,6 +1017,28 @@ function buildReport(){
   l('  Caixinha: ' + fmt(cxBal) + '   |   Dívidas: ' + fmt(dRest));
   l('  Contas pagas: Dia 05 = ' + c5.pC + '/' + c5.tC + '   Dia 20 = ' + c20.pC + '/' + c20.tC);
 
+  // ════ CUSTOS EXTRAORDINÁRIOS ════
+  h('CUSTOS EXTRAORDINÁRIOS — SÓ ESTE MÊS');
+  const allEnts5 = periodEntries(5), allEnts20 = periodEntries(20);
+  const pontuais = [...allEnts5,...allEnts20].filter(e=>e.type==='variable');
+  if(!pontuais.length){
+    l('  Nenhum custo pontual este mês. ✓');
+  } else {
+    const totalPont = pontuais.reduce((s,e)=>s+planned(e),0);
+    l('');
+    l('  Estes itens aparecem APENAS em '+MS[curM]+'/'+curY+' e NÃO se repetem nos próximos meses:');
+    l('');
+    pontuais.forEach(e=>{
+      const pg=isPaid(e.pid),val=planned(e),pa=paidAmt(e.pid);
+      l('  ⚡ [D'+String(e.day).padStart(2,'0')+'] '+e.name.padEnd(30)+fmt(val).padStart(12)+'   '+(pg?'✓ PAGO':'○ PENDENTE'));
+    });
+    l('');
+    hr();
+    l('  Total extraordinário este mês: '+fmt(totalPont));
+    l('  → A partir de '+MS[(curM+1)%12]+'/'+(curM===11?curY+1:curY)+' esses '+fmt(totalPont)+' deixam de existir.');
+    l('  → Saldo do próximo mês já melhora automaticamente em ~'+fmt(totalPont)+'.');
+  }
+
   // ════ STATUS DE PAGAMENTOS ════
   h('STATUS DE PAGAMENTOS — ' + MS[curM].toUpperCase());
   const allExp = [...periodEntries(5).filter(e=>e.type!=='income'), ...periodEntries(20).filter(e=>e.type!=='income')];
@@ -1167,7 +1189,9 @@ function buildReport(){
       if(d.endY&&d.endM!=null){const be=(py<d.endY)||(py===d.endY&&pm<=d.endM);if(!be)return false;}
       return true;
     }).length;
-    const flag = i===0?' ← ATUAL':saldo<0?' ⚠':'';
+    // count pontuais this month that won't repeat
+    const pontTotal = i===0 ? pontuais.reduce((s,e)=>s+planned(e),0) : 0;
+    const flag = i===0?' ← ATUAL (inclui R$'+pontuais.reduce((s,e)=>s+planned(e),0).toFixed(2).replace('.',',').replace(/\B(?=(\d{3})+(?!\d))/g,'.')+' pontuais)':i===1&&pontuais.length?' ← sem pontuais de '+MS[curM]:saldo<0?' ⚠':'';
     const lbl = (MS[pm]+'/'+py).padEnd(12);
     l('  '+lbl+fmt(totalI).padStart(12)+'  '+fmt(totalO).padStart(12)+'  '+fmt(saldo).padStart(10)+'  '+dActive+'x dívida'+flag);
   }
@@ -1314,4 +1338,4 @@ render();
   <button class="btn-cancel" onclick="closeM('mReport')">Fechar</button>
 </div></div>
 </body>
-  </html>
+</html>

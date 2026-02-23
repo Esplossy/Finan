@@ -924,164 +924,364 @@ function copyReport(){
 function buildReport(){
   const now = new Date();
   const lines = [];
-  const h = (t) => lines.push('\n' + '═'.repeat(48) + '\n' + t + '\n' + '═'.repeat(48));
-  const s = (t) => lines.push('\n── ' + t + ' ──');
-  const l = (t) => lines.push(t);
+  const h  = (t) => lines.push('\n' + '═'.repeat(54) + '\n ' + t + '\n' + '═'.repeat(54));
+  const s  = (t) => lines.push('\n▸ ' + t);
+  const l  = (t) => lines.push(t);
+  const hr = ()  => lines.push('  ' + '─'.repeat(50));
 
-  lines.push('RELATÓRIO FINANCEIRO COMPLETO — MEU CAIXA');
-  lines.push('Gerado em: ' + now.toLocaleDateString('pt-BR') + ' às ' + now.toLocaleTimeString('pt-BR'));
-  lines.push('Referência: ' + MS[curM] + '/' + curY);
+  const typeLabel = {
+    income:'[ENTRADA]  ', fixed:'[FIXA]     ',
+    variable:'[PONTUAL]  ', vf:'[VAR]      ', debt:'[PARCELA]  '
+  };
+  const paidLabel = (pg,val,pa) => {
+    if(!pg) return '○ PENDENTE';
+    if(pa===val) return '✓ PAGO     '+fmt(pa);
+    return '✓ PAGO     '+fmt(pa)+' (plan. '+fmt(val)+')';
+  };
+  const monthsAway = (y,m) => (y - curY)*12 + (m - curM);
 
-  // ── VISÃO GERAL DO MÊS ──
-  h('VISÃO GERAL — ' + MS[curM].toUpperCase() + ' ' + curY);
-  const c5 = calcPeriod(5), c20 = calcPeriod(20);
-  const tr = S.transfers[trK()] || 0;
-  const gasT = S.gastos.filter(g=>g.y===curY&&g.m===curM).reduce((s,g)=>s+g.amt,0);
+  const c5  = calcPeriod(5), c20 = calcPeriod(20);
+  const tr  = S.transfers[trK()] || 0;
+  const gasT  = S.gastos.filter(g=>g.y===curY&&g.m===curM).reduce((s,g)=>s+g.amt,0);
   const cxBal = S.caixinha.reduce((s,t)=>s+(t.type==='in'?t.amt:-t.amt),0);
   const dRest = S.debts.reduce((s,d)=>s+debtRem(d),0);
+  const totalRec  = c5.totalIn + c20.totalIn;
+  const totalDesp = c5.totalOut + c20.totalOut;
+  const compPct   = totalRec>0 ? Math.round(totalDesp/totalRec*100) : 0;
+  const sobraReal = c20.bal - gasT;
 
-  l('Salários Dia 05:    ' + fmt(c5.totalIn));
-  l('Salários Dia 20:    ' + fmt(c20.totalIn));
-  l('Total Receitas:     ' + fmt(c5.totalIn + c20.totalIn));
-  l('Transferência D05→D20: ' + fmt(tr));
-  l('');
-  l('Despesas Dia 05:    ' + fmt(c5.totalOut));
-  l('Despesas Dia 20:    ' + fmt(c20.totalOut));
-  l('Total Despesas:     ' + fmt(c5.totalOut + c20.totalOut));
-  l('');
-  l('Saldo Dia 05:       ' + fmt(c5.bal) + (c5.bal < 0 ? ' ⚠️ NEGATIVO' : ' ✓'));
-  l('Saldo Dia 20:       ' + fmt(c20.bal) + (c20.bal < 0 ? ' ⚠️ NEGATIVO' : ' ✓'));
-  l('');
-  l('Gastos Dia a Dia:   ' + fmt(gasT));
-  l('Caixinha (saldo):   ' + fmt(cxBal));
-  l('Dívidas em aberto:  ' + fmt(dRest));
-  l('');
-  l('Contas pagas D05:   ' + c5.pC + '/' + c5.tC);
-  l('Contas pagas D20:   ' + c20.pC + '/' + c20.tC);
+  // ── SCORE ──
+  let score = 10;
+  let scoreNotes = [];
+  if(compPct >= 95){ score -= 4; scoreNotes.push('-4 renda quase toda comprometida ('+compPct+'%)'); }
+  else if(compPct >= 80){ score -= 2; scoreNotes.push('-2 comprometimento alto ('+compPct+'%)'); }
+  else if(compPct >= 70){ score -= 1; scoreNotes.push('-1 comprometimento elevado ('+compPct+'%)'); }
+  if(cxBal <= 0){ score -= 2; scoreNotes.push('-2 sem reserva de emergência'); }
+  else if(cxBal < totalRec){ score -= 1; scoreNotes.push('-1 reserva menor que 1 mês de receita'); }
+  if(dRest > totalRec * 3){ score -= 2; scoreNotes.push('-2 dívidas > 3x a receita mensal'); }
+  else if(dRest > totalRec){ score -= 1; scoreNotes.push('-1 dívidas > receita mensal'); }
+  if(c5.bal < 0 || c20.bal < 0){ score -= 2; scoreNotes.push('-2 saldo negativo em algum período'); }
+  score = Math.max(0, score);
+  const scoreBar = '●'.repeat(score) + '○'.repeat(10-score);
+  const scoreLbl = score >= 8 ? 'SAUDÁVEL' : score >= 6 ? 'ATENÇÃO' : score >= 4 ? 'CRÍTICO' : 'EMERGÊNCIA';
 
-  // ── DIA 05 ──
-  h('PLANO DIA 05');
-  const ents5 = periodEntries(5);
-  const inc5 = ents5.filter(e=>e.type==='income');
-  const exp5 = ents5.filter(e=>e.type!=='income');
-  s('Entradas');
-  inc5.forEach(e => l('  + ' + e.name.padEnd(22) + fmt(planned(e))));
-  s('Despesas Fixas / Variáveis');
-  exp5.forEach(e => {
-    const pg = isPaid(e.pid);
-    const val = planned(e);
-    const pa = paidAmt(e.pid);
-    const status = pg ? ('✓ pago ' + fmt(pa) + (pa !== val ? ' (plan. '+fmt(val)+')' : '')) : '○ pendente';
-    l('  ' + (pg?'✓':'○') + ' ' + e.name.padEnd(22) + fmt(val) + '  ' + status.replace(fmt(pa),'').replace('✓ pago','').trim());
-  });
+  // ── HEADER ──
+  l('╔══════════════════════════════════════════════════════╗');
+  l('║     RELATÓRIO FINANCEIRO COMPLETO — MEU CAIXA       ║');
+  l('╚══════════════════════════════════════════════════════╝');
+  l('  Gerado: ' + now.toLocaleDateString('pt-BR') + ' ' + now.toLocaleTimeString('pt-BR'));
+  l('  Referência: ' + MS[curM] + ' ' + curY);
 
-  // ── DIA 20 ──
-  h('PLANO DIA 20');
-  const ents20 = periodEntries(20);
-  const inc20 = ents20.filter(e=>e.type==='income');
-  const exp20 = ents20.filter(e=>e.type!=='income');
-  s('Entradas');
-  inc20.forEach(e => l('  + ' + e.name.padEnd(22) + fmt(planned(e))));
-  if(tr > 0) l('  + Recebido do Dia 05     ' + fmt(tr));
-  s('Despesas Fixas / Variáveis');
-  exp20.forEach(e => {
-    const pg = isPaid(e.pid);
-    const val = planned(e);
-    const pa = paidAmt(e.pid);
-    l('  ' + (pg?'✓':'○') + ' ' + e.name.padEnd(22) + fmt(val) + (pg ? '  ✓ pago '+fmt(pa) : '  ○ pendente'));
-  });
+  // ════ RESUMO EXECUTIVO ════
+  h('RESUMO EXECUTIVO');
+  l('');
+  l('  SCORE FINANCEIRO: ' + score + '/10  [' + scoreBar + ']  ' + scoreLbl);
+  l('');
+  scoreNotes.forEach(n => l('    ' + n));
+  l('');
+  hr();
+  l('');
+  // 3 linhas de diagnóstico
+  const diag1 = compPct >= 90
+    ? '⚠ ALERTA: ' + compPct + '% da renda comprometida. Margem real de apenas ' + fmt(c20.bal) + '.'
+    : '✓ Comprometimento em ' + compPct + '% da renda (' + fmt(totalDesp) + ' de ' + fmt(totalRec) + ').';
+  const diag2 = dRest > 0
+    ? '● Dívidas ativas: ' + fmt(dRest) + ' em ' + S.debts.filter(d=>debtRem(d)>0).length + ' dívida(s). Maior encargo: ' + (()=>{const d=S.debts.filter(d=>debtRem(d)>0).sort((a,b)=>debtRem(b)-debtRem(a))[0];return d?d.name+' ('+fmt(debtRem(d))+')':'—';})()
+    : '✓ Sem dívidas ativas. Parabéns!';
+  const diag3 = cxBal > 0
+    ? '✓ Reserva: ' + fmt(cxBal) + '. Meta ideal (3 meses): ' + fmt(totalRec*3) + '.'
+    : '⚠ Sem reserva de emergência. Prioridade após estabilizar.';
+  l('  ' + diag1);
+  l('  ' + diag2);
+  l('  ' + diag3);
 
-  // ── DÍVIDAS ──
-  h('DÍVIDAS');
-  if(S.debts.length === 0){
-    l('Nenhuma dívida cadastrada. 🎉');
-  } else {
-    S.debts.forEach(d => {
-      const rest = debtRem(d);
-      const paid = debtPaidTotal(d);
-      const pct = d.total > 0 ? Math.round(paid/d.total*100) : 0;
-      const done = rest <= 0;
-      l('');
-      l((done?'✓ QUITADA':'● ATIVA') + ' — ' + d.name + (d.who?' ('+d.who+')':''));
-      l('  Tipo:      ' + (d.kind==='parc'?'Parcelada':'Em aberto'));
-      l('  Total:     ' + fmt(d.total));
-      l('  Pago:      ' + fmt(paid) + ' (' + pct + '%)');
-      l('  Restante:  ' + fmt(rest));
-      l('  Parcela:   ' + fmt(d.monthly) + '/mês — Dia ' + String(d.day).padStart(2,'0'));
-      l('  Período:   ' + MS[d.startM]+'/'+d.startY + (d.endM!=null&&d.endY?' → '+MS[d.endM]+'/'+d.endY:''));
-      if(d.note) l('  Obs:       ' + d.note);
-      const mPago = !!(S.debtMo[dpK(d.id)]);
-      l('  Este mês:  ' + (mPago ? '✓ parcela paga' : '○ parcela pendente'));
+  // ════ VISÃO GERAL ════
+  h('VISÃO GERAL — ' + MS[curM].toUpperCase() + ' ' + curY);
+  l('');
+  l('  RECEITAS');
+  l('  Dia 05: ' + fmt(c5.totalIn).padStart(14) + '   Dia 20: ' + fmt(c20.totalIn).padStart(12));
+  l('  Total:  ' + fmt(totalRec).padStart(14));
+  l('');
+  l('  DESPESAS PLANEJADAS');
+  l('  Dia 05: ' + fmt(c5.totalOut).padStart(14) + '   Dia 20: ' + fmt(c20.totalOut).padStart(12));
+  l('  Total:  ' + fmt(totalDesp).padStart(14) + '   (' + compPct + '% da receita)');
+  l('');
+  l('  Transferência Dia 05 → Dia 20: ' + fmt(tr));
+  l('');
+  l('  SALDOS');
+  l('  Dia 05: ' + fmt(c5.bal).padStart(14) + (c5.bal<0?' ⚠ NEGATIVO':' ✓'));
+  l('  Dia 20: ' + fmt(c20.bal).padStart(14) + (c20.bal<0?' ⚠ NEGATIVO':' ✓'));
+  l('  Gastos variáveis lançados: ' + fmt(gasT).padStart(10));
+  l('  Saldo real estimado:       ' + fmt(sobraReal).padStart(10) + (sobraReal<0?' ⚠':' ✓'));
+  l('');
+  l('  Caixinha: ' + fmt(cxBal) + '   |   Dívidas: ' + fmt(dRest));
+  l('  Contas pagas: Dia 05 = ' + c5.pC + '/' + c5.tC + '   Dia 20 = ' + c20.pC + '/' + c20.tC);
+
+  // ════ STATUS DE PAGAMENTOS ════
+  h('STATUS DE PAGAMENTOS — ' + MS[curM].toUpperCase());
+  const allExp = [...periodEntries(5).filter(e=>e.type!=='income'), ...periodEntries(20).filter(e=>e.type!=='income')];
+  const pagas   = allExp.filter(e=>isPaid(e.pid));
+  const pend    = allExp.filter(e=>!isPaid(e.pid));
+  if(pagas.length){
+    s('Já pagas (' + pagas.length + ')');
+    pagas.forEach(e=>{
+      const pa=paidAmt(e.pid),val=planned(e);
+      l('  ✓ [D'+String(e.day).padStart(2,'0')+'] '+e.name.padEnd(28)+fmt(pa).padStart(12)+(pa!==val?' (plan. '+fmt(val)+')':''));
     });
-    l('');
-    l('TOTAL EM DÍVIDAS: ' + fmt(dRest));
+  }
+  if(pend.length){
+    s('Pendentes (' + pend.length + ')');
+    pend.forEach(e=>{
+      const val=planned(e);
+      const valStr = val===null?'(definir)':fmt(val);
+      l('  ○ [D'+String(e.day).padStart(2,'0')+'] '+e.name.padEnd(28)+valStr.padStart(12)+'   '+typeLabel[e.type].trim());
+    });
   }
 
-  // ── GASTOS DO MÊS ──
-  h('GASTOS DO DIA A DIA — ' + MS[curM].toUpperCase() + ' ' + curY);
-  const gs = S.gastos.filter(g=>g.y===curY&&g.m===curM);
-  if(gs.length === 0){
-    l('Nenhum gasto lançado neste mês.');
+  // helper para seção de entradas+despesas
+  function renderDay(day){
+    const ents = periodEntries(day);
+    const inc  = ents.filter(e=>e.type==='income');
+    const fix  = ents.filter(e=>e.type==='fixed');
+    const vf   = ents.filter(e=>e.type==='vf');
+    const dbt  = ents.filter(e=>e.type==='debt');
+    const vr   = ents.filter(e=>e.type==='variable');
+    const totIn= day===5 ? c5.totalIn : c20.totalIn;
+    const totOut= day===5 ? c5.totalOut : c20.totalOut;
+    const bal  = day===5 ? c5.bal : c20.bal;
+
+    s('Entradas');
+    inc.forEach(e=>l('  '+typeLabel.income+e.name.padEnd(28)+fmt(planned(e)).padStart(12)));
+    if(day===20&&tr>0) l('  [TRANSF]   Recebido do Dia 05'.padEnd(39)+fmt(tr).padStart(12));
+    l('  '+' '.repeat(11)+'TOTAL ENTRADAS'.padEnd(28)+fmt(day===20?totIn+tr:totIn).padStart(12));
+
+    if(fix.length){
+      s('Despesas Fixas (todo mês, valor fixo)');
+      fix.forEach(e=>{const pg=isPaid(e.pid),val=planned(e),pa=paidAmt(e.pid);
+        l('  '+typeLabel.fixed+e.name.padEnd(28)+fmt(val).padStart(12)+'   '+paidLabel(pg,val,pa));});
+    }
+    if(vf.length){
+      s('Valor Variável (fixas mas o valor muda todo mês)');
+      vf.forEach(e=>{const pg=isPaid(e.pid),val=planned(e),pa=paidAmt(e.pid);
+        const vs=val===null?'(não definido)':fmt(val);
+        l('  '+typeLabel.vf+e.name.padEnd(28)+vs.padStart(12)+'   '+(val===null?'⚠ DEFINIR VALOR':paidLabel(pg,val,pa)));});
+    }
+    if(dbt.length){
+      s('Parcelas de Dívidas');
+      dbt.forEach(e=>{const pg=isPaid(e.pid),val=planned(e),pa=paidAmt(e.pid);
+        const d=S.debts.find(x=>x.id===e._did);
+        const ma=d&&d.endY&&d.endM!=null?monthsAway(d.endY,d.endM):null;
+        const periodo=d?(MS[d.startM]+'/'+d.startY+(d.endM!=null&&d.endY?' → '+MS[d.endM]+'/'+d.endY:'')):'';
+        const falta=ma!=null?(ma===0?'último mês!':ma===1?'falta 1 mês':'faltam '+ma+' meses'):'';
+        l('  '+typeLabel.debt+e.name.padEnd(28)+fmt(val).padStart(12)+'   '+paidLabel(pg,val,pa));
+        if(periodo||falta) l('  '+' '.repeat(11)+'Período: '+periodo+(falta?' | '+falta:'')+(d&&d.who?' | '+d.who:''));
+        if(e._rem!==undefined) l('  '+' '.repeat(11)+'Restante total: '+fmt(e._rem)+(e._np?' ('+e._np+'x de '+fmt(val)+')':''));
+      });
+    }
+    if(vr.length){
+      s('Pontuais (só este mês)');
+      vr.forEach(e=>{const pg=isPaid(e.pid),val=planned(e),pa=paidAmt(e.pid);
+        l('  '+typeLabel.variable+e.name.padEnd(28)+fmt(val).padStart(12)+'   '+paidLabel(pg,val,pa));});
+    }
+    hr();
+    l('  '+' '.repeat(11)+'TOTAL DESPESAS'.padEnd(28)+fmt(totOut).padStart(12));
+    if(day===5&&tr>0) l('  '+' '.repeat(11)+'Transferência → D20'.padEnd(28)+('-'+fmt(tr)).padStart(12));
+    l('  '+' '.repeat(11)+'SALDO DIA '+day.toString().padStart(2,'0').padEnd(22)+fmt(bal).padStart(12)+(bal<0?' ⚠':' ✓'));
+  }
+
+  h('PLANO DIA 05 — ' + MS[curM].toUpperCase() + ' ' + curY);
+  renderDay(5);
+  h('PLANO DIA 20 — ' + MS[curM].toUpperCase() + ' ' + curY);
+  renderDay(20);
+
+  // ════ DÍVIDAS ════
+  h('DÍVIDAS — DETALHAMENTO COMPLETO');
+  if(!S.debts.length){
+    l('  Nenhuma dívida cadastrada. 🎉');
   } else {
-    const byCat = {};
-    gs.forEach(g=>{ if(!byCat[g.cat]) byCat[g.cat]=0; byCat[g.cat]+=g.amt; });
+    const ativas   = S.debts.filter(d=>debtRem(d)>0);
+    const quitadas = S.debts.filter(d=>debtRem(d)<=0);
+    if(ativas.length){
+      s('Ativas ('+ativas.length+')');
+      ativas.forEach(d=>{
+        const rest=debtRem(d),paid=debtPaidTotal(d);
+        const pct=d.total>0?Math.round(paid/d.total*100):0;
+        const mRest=d.monthly>0?Math.ceil(rest/d.monthly):'?';
+        const mPago=!!(S.debtMo[dpK(d.id)]);
+        const ma=d.endY&&d.endM!=null?monthsAway(d.endY,d.endM):null;
+        const falta=ma!=null?(ma===0?'ÚLTIMO MÊS!':ma===1?'falta 1 mês':'faltam '+ma+' meses'):'em aberto';
+        const barLen=20,filled=Math.round(pct/100*barLen);
+        const bar='█'.repeat(filled)+'░'.repeat(barLen-filled);
+        l('');
+        l('  ● '+d.name+(d.who?' — '+d.who:''));
+        l('    Tipo:      '+(d.kind==='parc'?'Parcelada ('+d.nParcelas+'x)':'Em aberto'));
+        l('    Dia cob.:  Dia '+String(d.day).padStart(2,'0')+'   |   Credor: '+(d.who||'—'));
+        l('    Período:   '+MS[d.startM]+'/'+d.startY+(d.endM!=null&&d.endY?' → '+MS[d.endM]+'/'+d.endY:'')+'   ('+falta+')');
+        l('    Parcela:   '+fmt(d.monthly)+'/mês'+(d.kind==='parc'?' | '+mRest+'x restantes':''));
+        l('    Progresso: ['+bar+'] '+pct+'%');
+        l('    Total:     '+fmt(d.total)+'   Pago: '+fmt(paid)+'   Restante: '+fmt(rest));
+        if(d.note) l('    Obs:       '+d.note);
+        l('    Este mês:  '+(mPago?'✓ PARCELA PAGA':'○ PARCELA PENDENTE'));
+      });
+    }
+    if(quitadas.length){
+      s('Quitadas ('+quitadas.length+')');
+      quitadas.forEach(d=>l('  ✓ '+d.name+(d.who?' — '+d.who:'')+' | '+fmt(d.total)+' | quitada'));
+    }
+    l('');
+    hr();
+    l('  Total em aberto: '+fmt(dRest)+'   ('+ativas.length+' ativa(s))');
+  }
+
+  // ════ PROJEÇÃO ════
+  h('PROJEÇÃO DOS PRÓXIMOS 6 MESES');
+  l('');
+  l('  (Baseado nas despesas fixas atuais, sem gastos variáveis)');
+  l('');
+  l('  Mês         Receita     Despesas    Saldo    Dívidas ativas');
+  l('  ' + '─'.repeat(62));
+  for(let i=0; i<=6; i++){
+    let pm = curM + i, py = curY;
+    while(pm > 11){ pm -= 12; py++; }
+    // calc fixed expenses for that month
+    const fixedOut = S.entries.filter(e=>{
+      if(e.type==='income') return false;
+      if(e.rec==='monthly'||e.type==='vf') return e.day===5||e.day===20;
+      if(e.rec==='once') return e.month===pm&&e.year===py;
+      return false;
+    }).reduce((s,e)=>s+(e.amount||0),0);
+    // debt payments for that month
+    const debtOut = S.debts.filter(d=>{
+      if(debtRem(d)<=0) return false;
+      const as=(py>d.startY)||(py===d.startY&&pm>=d.startM);
+      if(!as) return false;
+      if(d.endY&&d.endM!=null){const be=(py<d.endY)||(py===d.endY&&pm<=d.endM);if(!be)return false;}
+      return true;
+    }).reduce((s,d)=>s+d.monthly,0);
+    const totalO = fixedOut + debtOut;
+    const totalI = totalRec; // assume same income
+    const saldo  = totalI - totalO;
+    const dActive= S.debts.filter(d=>{
+      if(debtRem(d)<=0) return false;
+      const as=(py>d.startY)||(py===d.startY&&pm>=d.startM);if(!as)return false;
+      if(d.endY&&d.endM!=null){const be=(py<d.endY)||(py===d.endY&&pm<=d.endM);if(!be)return false;}
+      return true;
+    }).length;
+    const flag = i===0?' ← ATUAL':saldo<0?' ⚠':'';
+    const lbl = (MS[pm]+'/'+py).padEnd(12);
+    l('  '+lbl+fmt(totalI).padStart(12)+'  '+fmt(totalO).padStart(12)+'  '+fmt(saldo).padStart(10)+'  '+dActive+'x dívida'+flag);
+  }
+
+  // ════ GASTOS ════
+  h('GASTOS VARIÁVEIS — ' + MS[curM].toUpperCase() + ' ' + curY);
+  const gs = S.gastos.filter(g=>g.y===curY&&g.m===curM);
+  if(!gs.length){
+    l('  Nenhum gasto lançado neste mês.');
+  } else {
+    const byCat={};
+    gs.forEach(g=>{if(!byCat[g.cat])byCat[g.cat]=0;byCat[g.cat]+=g.amt;});
     s('Por categoria');
     Object.entries(byCat).sort((a,b)=>b[1]-a[1]).forEach(([cat,amt])=>{
-      const pct = gasT > 0 ? Math.round(amt/gasT*100) : 0;
-      l('  ' + cat.padEnd(24) + fmt(amt) + '  (' + pct + '%)');
+      const pct=gasT>0?Math.round(amt/gasT*100):0;
+      const bar='█'.repeat(Math.round(pct/5))+'░'.repeat(20-Math.round(pct/5));
+      l('  '+cat.padEnd(24)+fmt(amt).padStart(12)+'  '+bar+' '+pct+'%');
     });
     s('Lançamentos');
-    [...gs].reverse().forEach(g => {
-      l('  ' + fdate(g.date) + '  ' + g.desc.padEnd(22) + fmt(g.amt) + '  ' + g.cat.substring(2));
+    [...gs].reverse().forEach(g=>{
+      l('  '+fdate(g.date)+'  '+g.desc.padEnd(26)+fmt(g.amt).padStart(10)+'  '+g.cat.substring(2));
     });
-    l('');
-    l('TOTAL GASTOS: ' + fmt(gasT));
+    hr();
+    l('  TOTAL: '+fmt(gasT));
   }
 
-  // ── CAIXINHA ──
-  h('CAIXINHA (POUPANÇA)');
-  l('Saldo atual: ' + fmt(cxBal));
+  // ════ TENDÊNCIA DE GASTOS ════
+  h('TENDÊNCIA DE GASTOS (últimos 3 meses)');
+  const trendMonths=[];
+  for(let i=2;i>=0;i--){
+    let pm=curM-i,py=curY;
+    while(pm<0){pm+=12;py--;}
+    const mg=S.gastos.filter(g=>g.y===py&&g.m===pm);
+    const mt=mg.reduce((s,g)=>s+g.amt,0);
+    trendMonths.push({label:MS[pm]+'/'+py,total:mt,count:mg.length,m:pm,y:py});
+  }
+  const maxT=Math.max(...trendMonths.map(x=>x.total),1);
   l('');
-  const cxMes = S.caixinha.filter(t=>t.y===curY&&t.m===curM);
-  if(cxMes.length > 0){
-    s('Movimentações de ' + MS[curM]);
-    cxMes.forEach(t => l('  ' + (t.type==='in'?'+':'-') + ' ' + fmt(t.amt) + '  ' + t.desc + '  (' + fdate(t.date) + ')'));
-  }
-  if(S.caixinha.length > cxMes.length){
-    s('Histórico geral');
-    [...S.caixinha].reverse().slice(0,20).forEach(t => l('  ' + MS[t.m]+'/'+t.y + '  ' + (t.type==='in'?'+':'-') + fmt(t.amt) + '  ' + t.desc));
-  }
-
-  // ── HISTÓRICO DE MESES ANTERIORES ──
-  h('HISTÓRICO MESES ANTERIORES');
-  // find unique months in gastos (last 6)
-  const monthsSet = new Set();
-  S.gastos.forEach(g => monthsSet.add(g.y+'-'+String(g.m).padStart(2,'0')));
-  const months = [...monthsSet].sort().reverse().slice(0,6);
-  months.forEach(mk => {
-    const [my, mm] = mk.split('-').map(Number);
-    if(my===curY && mm===curM) return; // skip current
-    const mGs = S.gastos.filter(g=>g.y===my&&g.m===mm);
-    const mTotal = mGs.reduce((s,g)=>s+g.amt,0);
-    l(MS[mm]+'/'+my + ' — Gastos: ' + fmt(mTotal) + ' (' + mGs.length + ' lançamentos)');
+  trendMonths.forEach(t=>{
+    const barLen=Math.round(t.total/maxT*30);
+    const bar='█'.repeat(barLen)+'░'.repeat(30-barLen);
+    const isCur=t.m===curM&&t.y===curY;
+    l('  '+t.label.padEnd(10)+'['+bar+'] '+fmt(t.total)+(isCur?' ← atual':''));
   });
+  if(trendMonths[0].total>0&&trendMonths[2].total>0){
+    const diff=trendMonths[2].total-trendMonths[0].total;
+    const pct=Math.round(Math.abs(diff)/trendMonths[0].total*100);
+    l('');
+    l('  Variação: '+(diff>0?'▲ subiu '+pct+'% vs 2 meses atrás':'▼ caiu '+pct+'% vs 2 meses atrás'));
+  }
 
-  // ── ANÁLISE / CONTEXTO ──
-  h('CONTEXTO PARA ANÁLISE');
-  const totalRec = c5.totalIn + c20.totalIn;
-  const totalDesp = c5.totalOut + c20.totalOut;
-  const sobra = c20.bal;
-  const compDesp = totalDesp > 0 ? Math.round(totalDesp/totalRec*100) : 0;
-  const compDiv = totalRec > 0 ? Math.round(dRest/totalRec*100) : 0;
-  l('Receita total:        ' + fmt(totalRec));
-  l('Despesas fixas total: ' + fmt(totalDesp) + ' (' + compDesp + '% da receita)');
-  l('Sobra do mês:         ' + fmt(sobra));
-  l('Gastos variáveis:     ' + fmt(gasT));
-  l('Dívidas = ' + compDiv + 'x o salário mensal');
+  // ════ CAIXINHA ════
+  h('CAIXINHA (RESERVA DE EMERGÊNCIA)');
+  const metaIdeal=totalRec*3;
+  const cxPct=metaIdeal>0?Math.min(100,Math.round(cxBal/metaIdeal*100)):0;
+  const cxBar='█'.repeat(Math.round(cxPct/5))+'░'.repeat(20-Math.round(cxPct/5));
   l('');
-  l('--- FIM DO RELATÓRIO ---');
-  l('Cole este texto numa conversa com o Claude para análise e planejamento.');
+  l('  Saldo atual:   '+fmt(cxBal));
+  l('  Meta (3 meses):'+fmt(metaIdeal).padStart(14));
+  l('  Progresso: ['+cxBar+'] '+cxPct+'%');
+  const cxMes=S.caixinha.filter(t=>t.y===curY&&t.m===curM);
+  if(cxMes.length){
+    s('Movimentações de '+MS[curM]);
+    cxMes.forEach(t=>l('  '+(t.type==='in'?'+':'-')+' '+fmt(t.amt).padStart(10)+'  '+t.desc+'  ('+fdate(t.date)+')'));
+    const mIn=cxMes.filter(t=>t.type==='in').reduce((s,t)=>s+t.amt,0);
+    const mOut=cxMes.filter(t=>t.type==='out').reduce((s,t)=>s+t.amt,0);
+    l('  Entrou: '+fmt(mIn)+'   Saiu: '+fmt(mOut));
+  } else {
+    l('  Nenhuma movimentação neste mês.');
+  }
 
+  // ════ HISTÓRICO ════
+  h('HISTÓRICO DE MESES ANTERIORES');
+  const allMonths=new Set();
+  [...S.gastos,...S.caixinha].forEach(x=>allMonths.add(x.y+'-'+String(x.m).padStart(2,'0')));
+  const sortedM=[...allMonths].sort().reverse().filter(mk=>{
+    const[my,mm]=mk.split('-').map(Number);return!(my===curY&&mm===curM);
+  }).slice(0,6);
+  if(!sortedM.length){ l('  Nenhum histórico anterior.'); }
+  else {
+    l('');
+    l('  Mês         Gastos variáveis   Guardado caixinha');
+    l('  '+'─'.repeat(46));
+    sortedM.forEach(mk=>{
+      const[my,mm]=mk.split('-').map(Number);
+      const mGs=S.gastos.filter(g=>g.y===my&&g.m===mm).reduce((s,g)=>s+g.amt,0);
+      const mCx=S.caixinha.filter(t=>t.y===my&&t.m===mm&&t.type==='in').reduce((s,t)=>s+t.amt,0);
+      l('  '+(MS[mm]+'/'+my).padEnd(12)+fmt(mGs).padStart(18)+'   '+fmt(mCx).padStart(14));
+    });
+  }
+
+  // ════ CONTEXTO ════
+  h('INDICADORES E CONTEXTO');
+  l('');
+  l('  Receita total:              '+fmt(totalRec));
+  l('  Despesas fixas:             '+fmt(totalDesp)+' ('+compPct+'% — ref. saudável: até 70%)');
+  l('  Parcelas de dívidas/mês:    '+fmt(S.debts.filter(d=>debtRem(d)>0).reduce((s,d)=>s+d.monthly,0)));
+  l('  Sobra teórica (Dia 20):     '+fmt(c20.bal));
+  l('  Gastos variáveis lançados:  '+fmt(gasT));
+  l('  Saldo real estimado:        '+fmt(sobraReal)+(sobraReal<0?' ⚠ NEGATIVO':''));
+  l('');
+  l('  Dívida total:               '+fmt(dRest));
+  l('  Dívida como % da receita:   '+Math.round(dRest/totalRec*100)+'% ('+Math.round(dRest/totalRec*10)/10+'x a receita mensal)');
+  l('  Reserva ideal (3 meses):    '+fmt(metaIdeal));
+  l('  Cobertura atual:            '+fmt(cxBal)+' ('+cxPct+'% da meta)');
+  l('');
+  l('  SCORE: '+score+'/10 — '+scoreLbl);
+  scoreNotes.forEach(n=>l('    '+n));
+
+  l('');
+  l('╔══════════════════════════════════════════════════════╗');
+  l('║  FIM DO RELATÓRIO — MEU CAIXA                       ║');
+  l('║  Cole numa conversa com o Claude para análise.      ║');
+  l('╚══════════════════════════════════════════════════════╝');
   return lines.join('\n');
 }
 
@@ -1114,4 +1314,4 @@ render();
   <button class="btn-cancel" onclick="closeM('mReport')">Fechar</button>
 </div></div>
 </body>
-</html>
+  </html>
